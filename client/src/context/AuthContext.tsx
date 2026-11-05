@@ -8,10 +8,8 @@ interface AuthContextType {
   loading: boolean;
   isConfigured: boolean;
   signOut: () => Promise<void>;
-  signInWithPasskey: () => Promise<{ error: Error | null }>;
-  registerPasskey: (name?: string) => Promise<{ error: Error | null }>;
-  listPasskeys: () => Promise<{ factors: any[]; error: Error | null }>;
-  deletePasskey: (factorId: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithMasterKey: (key: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,10 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isConfigured: false,
   signOut: async () => {},
-  signInWithPasskey: async () => ({ error: null }),
-  registerPasskey: async () => ({ error: null }),
-  listPasskeys: async () => ({ factors: [], error: null }),
-  deletePasskey: async () => ({ error: null }),
+  signInWithGoogle: async () => ({ error: null }),
+  signInWithMasterKey: () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -32,21 +28,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const configured = isSupabaseConfigured();
 
+  // Check master key session in localStorage
   useEffect(() => {
+    const isMasterAuth = localStorage.getItem('app_master_auth');
+    if (isMasterAuth === 'true') {
+      const mockUser: any = {
+        id: 'master-owner',
+        email: 'owner@portfolio.local',
+        user_metadata: { full_name: 'Portfolio Owner' },
+      };
+      setUser(mockUser);
+      setLoading(false);
+      return;
+    }
+
     if (!configured) {
       setLoading(false);
       return;
     }
 
-    // Get current session
+    // Get current Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen to changes
+    // Listen to Supabase auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (localStorage.getItem('app_master_auth') === 'true') return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -56,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [configured]);
 
   const signOut = async () => {
+    localStorage.removeItem('app_master_auth');
     if (configured) {
       await supabase.auth.signOut();
     }
@@ -63,12 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
-  // WebAuthn / Passkey Sign-in via Supabase MFA/WebAuthn
-  const signInWithPasskey = async () => {
+  // 1. One-click Google Sign-in
+  const signInWithGoogle = async () => {
     try {
       if (!configured) throw new Error('Supabase is not configured.');
-      // WebAuthn sign in with Supabase
-      const { data, error } = await (supabase.auth as any).signInWithPasskey();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
       if (error) return { error };
       return { error: null };
     } catch (err: any) {
@@ -76,52 +91,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Register a new passkey factor for the current logged-in user
-  const registerPasskey = async (name: string = 'My Security Key') => {
-    try {
-      if (!configured) throw new Error('Supabase is not configured.');
-      const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'webauthn',
-        friendlyName: name,
-      } as any);
-
-      if (error) return { error };
-
-      // Challenge confirmation is triggered by the browser WebAuthn prompt
-      if (data && (data as any).challenge) {
-        const challengeId = (data as any).id;
-        const verifyRes = await supabase.auth.mfa.challengeAndVerify({
-          factorId: challengeId,
-        } as any);
-        if (verifyRes.error) return { error: verifyRes.error };
-      }
-
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
+  // 2. Direct Master Key Sign-in
+  const signInWithMasterKey = (inputKey: string): boolean => {
+    const configuredKey = import.meta.env.VITE_MASTER_KEY || 'admin123';
+    if (inputKey && inputKey === configuredKey) {
+      localStorage.setItem('app_master_auth', 'true');
+      const masterUser: any = {
+        id: 'master-owner',
+        email: 'owner@portfolio.local',
+        user_metadata: { full_name: 'Portfolio Owner' },
+      };
+      setUser(masterUser);
+      return true;
     }
-  };
-
-  const listPasskeys = async () => {
-    try {
-      if (!configured) return { factors: [], error: null };
-      const { data, error } = await supabase.auth.mfa.listFactors();
-      if (error) return { factors: [], error };
-      const webauthnFactors = (data?.all || []).filter((f: any) => f.factor_type === 'webauthn');
-      return { factors: webauthnFactors, error: null };
-    } catch (err: any) {
-      return { factors: [], error: err };
-    }
-  };
-
-  const deletePasskey = async (factorId: string) => {
-    try {
-      if (!configured) throw new Error('Supabase is not configured.');
-      const { error } = await supabase.auth.mfa.unenroll({ factorId });
-      return { error };
-    } catch (err: any) {
-      return { error: err };
-    }
+    return false;
   };
 
   return (
@@ -132,10 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isConfigured: configured,
         signOut,
-        signInWithPasskey,
-        registerPasskey,
-        listPasskeys,
-        deletePasskey,
+        signInWithGoogle,
+        signInWithMasterKey,
       }}
     >
       {children}
@@ -144,4 +125,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-

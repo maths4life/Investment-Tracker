@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Upload, Info, Check, AlertCircle, KeyRound, Trash2, Plus, ShieldCheck, User, LogOut } from 'lucide-react';
+import { Download, Upload, Info, Check, AlertCircle, KeyRound, ShieldCheck, User, LogOut } from 'lucide-react';
 import { getSettings, updateSettings, exportJSON, exportCSV, importJSON } from '../lib/api';
 import { useApi } from '../hooks/useApi';
 import { CATEGORIES } from '../types';
@@ -8,19 +8,12 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
-  const { user, isConfigured, signOut, registerPasskey, listPasskeys, deletePasskey } = useAuth();
+  const { user, signOut } = useAuth();
   const { data: settings, loading, refetch } = useApi<SettingsType>(getSettings);
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [savingAlloc, setSavingAlloc] = useState(false);
-
-  // Passkey management state
-  const [passkeys, setPasskeys] = useState<any[]>([]);
-  const [loadingPasskeys, setLoadingPasskeys] = useState(false);
-  const [passkeyName, setPasskeyName] = useState('');
-  const [registeringKey, setRegisteringKey] = useState(false);
-  const [passkeyMsg, setPasskeyMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Dismissible notice state
   const [noticeDismissed, setNoticeDismissed] = useState(true);
@@ -32,48 +25,6 @@ export default function Settings() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
-
-  const fetchPasskeys = async () => {
-    if (!isConfigured || !user) return;
-    setLoadingPasskeys(true);
-    const { factors, error } = await listPasskeys();
-    if (!error) {
-      setPasskeys(factors);
-    }
-    setLoadingPasskeys(false);
-  };
-
-  useEffect(() => {
-    if (isConfigured && user) {
-      fetchPasskeys();
-    }
-  }, [isConfigured, user]);
-
-  const handleRegisterPasskey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasskeyMsg(null);
-    setRegisteringKey(true);
-    const name = passkeyName.trim() || 'My Passkey';
-    const { error } = await registerPasskey(name);
-    if (error) {
-      setPasskeyMsg({ type: 'error', text: error.message || 'Failed to register passkey.' });
-    } else {
-      setPasskeyMsg({ type: 'success', text: 'Passkey registered successfully!' });
-      setPasskeyName('');
-      fetchPasskeys();
-    }
-    setRegisteringKey(false);
-  };
-
-  const handleDeletePasskey = async (id: string) => {
-    if (!confirm('Remove this passkey?')) return;
-    const { error } = await deletePasskey(id);
-    if (error) {
-      alert(error.message);
-    } else {
-      fetchPasskeys();
-    }
-  };
 
   useEffect(() => {
     if (settings) {
@@ -202,14 +153,14 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Account & Passkey Management (when Supabase is configured) */}
-      {isConfigured && user && (
+      {/* Account Info & Sign Out */}
+      {user && (
         <section className="space-y-4">
           <div className="border-b border-divider pb-2 flex items-center justify-between">
             <div>
-              <h2 className="section-heading">Account & Passkeys</h2>
+              <h2 className="section-heading">Account</h2>
               <p className="text-xs text-muted mt-0.5">
-                Signed in as <strong className="text-text">{user.email}</strong>
+                Signed in as <strong className="text-text">{user.email || 'Portfolio Owner'}</strong>
               </p>
             </div>
             <button
@@ -219,81 +170,6 @@ export default function Settings() {
               <LogOut size={13} strokeWidth={1.5} />
               Sign out
             </button>
-          </div>
-
-          <div className="bg-surface border border-divider rounded p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <KeyRound size={16} strokeWidth={1.5} className="text-[#7A9E7E]" />
-                <span className="text-xs font-medium text-text">Registered Passkeys</span>
-              </div>
-              <span className="text-[11px] text-muted">WebAuthn / Biometrics</span>
-            </div>
-
-            {passkeyMsg && (
-              <div
-                className={`p-2.5 rounded text-xs flex items-center gap-2 ${
-                  passkeyMsg.type === 'success'
-                    ? 'bg-[#edf5f1] border border-[#c6e4d4] text-positive'
-                    : 'bg-[#fdf2f1] border border-[#f5c7c2] text-negative'
-                }`}
-              >
-                {passkeyMsg.type === 'success' ? (
-                  <ShieldCheck size={14} />
-                ) : (
-                  <AlertCircle size={14} />
-                )}
-                <span>{passkeyMsg.text}</span>
-              </div>
-            )}
-
-            {/* List existing passkeys */}
-            <div className="space-y-2">
-              {loadingPasskeys ? (
-                <p className="text-xs text-muted">Loading security keys...</p>
-              ) : passkeys.length === 0 ? (
-                <p className="text-xs text-muted">
-                  No passkeys registered yet. Add a passkey to log in securely with fingerprint, Face ID, or Windows Hello.
-                </p>
-              ) : (
-                <div className="divide-y divide-divider border border-divider rounded">
-                  {passkeys.map((key) => (
-                    <div key={key.id} className="p-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-medium text-text">{key.friendly_name || 'Passkey'}</p>
-                        <p className="text-[11px] text-muted">Added {new Date(key.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <button
-                        onClick={() => handleDeletePasskey(key.id)}
-                        className="text-muted hover:text-negative p-1 rounded hover:bg-fill"
-                        title="Remove passkey"
-                      >
-                        <Trash2 size={13} strokeWidth={1.5} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add passkey form */}
-            <form onSubmit={handleRegisterPasskey} className="flex gap-2 pt-1">
-              <input
-                type="text"
-                placeholder="Key label (e.g. MacBook Touch ID)"
-                value={passkeyName}
-                onChange={(e) => setPasskeyName(e.target.value)}
-                className="input py-1 text-xs"
-              />
-              <button
-                type="submit"
-                disabled={registeringKey}
-                className="btn btn-primary shrink-0 text-xs"
-              >
-                <Plus size={13} strokeWidth={1.5} />
-                {registeringKey ? 'Prompting device...' : 'Add Passkey'}
-              </button>
-            </form>
           </div>
         </section>
       )}
