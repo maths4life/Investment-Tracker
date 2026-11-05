@@ -194,7 +194,6 @@ export default function Dashboard() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip content={<DonutTooltip targetAlloc={targetAlloc} />} />
                 </PieChart>
               </ResponsiveContainer>
               {/* Centre label */}
@@ -205,7 +204,7 @@ export default function Dashboard() {
                   {activeCategory ? activeCategory : 'Total'}
                 </p>
                 <p className="text-sm font-medium tabular-nums text-text">
-                  {formatCompact(
+                  {formatINR(
                     activeCategory
                       ? (allocation.find(a => a.category === activeCategory)?.currentValue ?? totalValue)
                       : totalValue
