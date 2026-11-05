@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { initDb, isEmpty } from './db.js';
 import investmentsRouter from './routes/investments.js';
 import transactionsRouter from './routes/transactions.js';
 import txCrudRouter from './routes/txCrud.js';
@@ -8,18 +7,12 @@ import dashboardRouter from './routes/dashboard.js';
 import settingsRouter from './routes/settings.js';
 import exportImportRouter from './routes/exportImport.js';
 import { authMiddleware } from './middleware/auth.js';
-import { runSeed } from './seed.js';
+
+try {
+  process.loadEnvFile();
+} catch {}
 
 const PORT = process.env.PORT ?? 3001;
-
-initDb();
-
-// Seed only when explicitly requested via `npm run seed` or AUTO_SEED=true
-if (process.env.AUTO_SEED === 'true' && isEmpty()) {
-  console.log('[server] Database is empty and AUTO_SEED is set, running seed...');
-  runSeed();
-  console.log('[server] Seed complete.');
-}
 
 const app = express();
 app.use(cors());
@@ -27,7 +20,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Health check endpoint for root
 app.get('/', (_req, res) => {
-  res.json({ status: 'ok', message: 'Investment Tracker API is live and healthy' });
+  res.json({ status: 'ok', message: 'Investment Tracker API is live and healthy (Supabase Backend)' });
 });
 
 app.use(authMiddleware); // Scopes all endpoints by userId

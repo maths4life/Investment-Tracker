@@ -141,10 +141,9 @@ export default function Settings() {
           <div className="flex items-start gap-2.5">
             <Info size={16} strokeWidth={1.5} className="text-muted shrink-0 mt-0.5" />
             <div className="text-xs text-text leading-relaxed">
-              <p className="font-medium mb-0.5">Local SQLite Database Storage</p>
+              <p className="font-medium mb-0.5">Supabase Cloud Database Storage</p>
               <p className="text-muted">
-                Your portfolio data is stored exclusively in a local database file on your system (<code className="text-text">server/data/app.db</code>).
-                Because it is not synced to a remote cloud, export backups regularly to avoid data loss.
+                Your portfolio data is securely stored in your Supabase PostgreSQL cloud database. Your investments, transactions, and settings automatically persist across devices and deployments.
               </p>
             </div>
           </div>

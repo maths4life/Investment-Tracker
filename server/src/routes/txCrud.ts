@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db } from '../db.js';
+import { supabase } from '../supabase.js';
 import { computeMetrics, type TxRow } from '../calculations.js';
 import { getAllTxsForInvestment } from '../helpers.js';
 
@@ -18,13 +18,14 @@ const UpdateTxSchema = z.object({
   price_per_share: z.number().positive().optional().nullable(),
 });
 
-function validateBusinessRules(
+async function validateBusinessRules(
   type: string,
   date: string,
   amount: number,
   investmentId: number,
+  userId: string,
   excludeTxId?: number
-): string | null {
+): Promise<string | null> {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   const txDate = new Date(date + 'T00:00:00');
@@ -32,7 +33,7 @@ function validateBusinessRules(
   if (amount <= 0) return 'Amount must be positive.';
 
   if (type === 'withdraw') {
-    let txs = getAllTxsForInvestment(investmentId);
+    let txs = await getAllTxsForInvestment(investmentId, userId);
     if (excludeTxId) txs = txs.filter(t => t.id !== excludeTxId);
     const txsUpToDate = txs.filter(t => t.date <= date);
     const metrics = computeMetrics(txsUpToDate, new Date(date + 'T23:59:59'));
@@ -58,53 +59,87 @@ interface DbTxRow {
 }
 
 // PATCH /api/transactions/:id
-router.patch('/:id', (req, res) => {
-  const userId = req.userId;
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const existing = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId) as DbTxRow | undefined;
-  if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
+    const { data: existing } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  const parsed = UpdateTxSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
-    return;
+    if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
+
+    const parsed = UpdateTxSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+      return;
+    }
+
+    const merged = {
+      type: parsed.data.type ?? existing.type,
+      date: parsed.data.date ?? existing.date,
+      amount: parsed.data.amount ?? Number(existing.amount),
+      note: 'note' in parsed.data ? parsed.data.note : existing.note,
+      stock_name: 'stock_name' in parsed.data ? parsed.data.stock_name : existing.stock_name,
+      shares: 'shares' in parsed.data ? parsed.data.shares : (existing.shares != null ? Number(existing.shares) : null),
+      price_per_share: 'price_per_share' in parsed.data ? parsed.data.price_per_share : (existing.price_per_share != null ? Number(existing.price_per_share) : null),
+    };
+
+    const bizError = await validateBusinessRules(merged.type, merged.date, merged.amount, existing.investment_id, userId, id);
+    if (bizError) { res.status(422).json({ error: bizError }); return; }
+
+    const { data: updated, error } = await supabase
+      .from('transactions')
+      .update({
+        type: merged.type,
+        date: merged.date,
+        amount: merged.amount,
+        note: merged.note ?? null,
+        stock_name: merged.stock_name ?? null,
+        shares: merged.shares ?? null,
+        price_per_share: merged.price_per_share ?? null,
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      ...updated,
+      amount: Number(updated.amount),
+      price_per_share: updated.price_per_share != null ? Number(updated.price_per_share) : null,
+      shares: updated.shares != null ? Number(updated.shares) : null,
+    });
+  } catch (err) {
+    next(err);
   }
-
-  const merged = {
-    type: (parsed.data.type ?? existing.type),
-    date: parsed.data.date ?? existing.date,
-    amount: parsed.data.amount ?? existing.amount,
-    note: 'note' in parsed.data ? parsed.data.note : existing.note,
-    stock_name: 'stock_name' in parsed.data ? parsed.data.stock_name : existing.stock_name,
-    shares: 'shares' in parsed.data ? parsed.data.shares : existing.shares,
-    price_per_share: 'price_per_share' in parsed.data ? parsed.data.price_per_share : existing.price_per_share,
-  };
-
-  const bizError = validateBusinessRules(merged.type, merged.date, merged.amount, existing.investment_id, id);
-  if (bizError) { res.status(422).json({ error: bizError }); return; }
-
-  db.prepare(`
-    UPDATE transactions
-    SET type = ?, date = ?, amount = ?, note = ?, stock_name = ?, shares = ?, price_per_share = ?
-    WHERE id = ? AND user_id = ?
-  `).run(merged.type, merged.date, merged.amount, merged.note ?? null, merged.stock_name ?? null, merged.shares ?? null, merged.price_per_share ?? null, id, userId);
-
-  res.json(db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId));
 });
 
 // DELETE /api/transactions/:id
-router.delete('/:id', (req, res) => {
-  const userId = req.userId;
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const existing = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId);
-  if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
 
-  db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(id, userId);
-  res.status(204).end();
+    if (error) throw error;
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

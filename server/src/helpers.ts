@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { supabase } from './supabase.js';
 import { computeMetrics, computeStockHoldings, daysSinceLastValueUpdate, type TxRow } from './calculations.js';
 
 export interface InvestmentRow {
@@ -9,19 +9,46 @@ export interface InvestmentRow {
   created_at: string;
 }
 
-export function getInvestmentWithMetrics(id: number, userId: string = 'default-profile', today: Date = new Date()) {
-  const inv = db.prepare('SELECT * FROM investments WHERE id = ? AND user_id = ?').get(id, userId) as InvestmentRow | undefined;
+export async function getInvestmentWithMetrics(id: number, userId: string = 'default-profile', today: Date = new Date()) {
+  const { data: inv } = await supabase
+    .from('investments')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
   if (!inv) return null;
 
-  const txs = db.prepare('SELECT * FROM transactions WHERE investment_id = ? AND user_id = ? ORDER BY date').all(id, userId) as TxRow[];
+  const { data: txsData } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('investment_id', id)
+    .eq('user_id', userId)
+    .order('date', { ascending: true })
+    .order('id', { ascending: true });
+
+  const txs: TxRow[] = (txsData || []).map(t => ({
+    ...t,
+    amount: Number(t.amount),
+    price_per_share: t.price_per_share != null ? Number(t.price_per_share) : null,
+    shares: t.shares != null ? Number(t.shares) : null,
+  }));
+
   const metrics = computeMetrics(txs, today);
 
   // stock holdings if category is Stocks
   let holdings = null;
   if (inv.category === 'Stocks') {
-    const priceRows = db.prepare('SELECT stock_name, price_per_share FROM holdings_prices WHERE investment_id = ? AND user_id = ?').all(id, userId) as { stock_name: string; price_per_share: number }[];
+    const { data: priceRows } = await supabase
+      .from('holdings_prices')
+      .select('stock_name, price_per_share')
+      .eq('investment_id', id)
+      .eq('user_id', userId);
+
     const priceMap: Record<string, number> = {};
-    for (const p of priceRows) priceMap[p.stock_name] = p.price_per_share;
+    for (const p of priceRows || []) {
+      priceMap[p.stock_name] = Number(p.price_per_share);
+    }
     holdings = computeStockHoldings(txs, priceMap);
   }
 
@@ -38,6 +65,19 @@ export function getInvestmentWithMetrics(id: number, userId: string = 'default-p
   };
 }
 
-export function getAllTxsForInvestment(id: number, userId: string = 'default-profile'): TxRow[] {
-  return db.prepare('SELECT * FROM transactions WHERE investment_id = ? AND user_id = ? ORDER BY date, id').all(id, userId) as TxRow[];
+export async function getAllTxsForInvestment(id: number, userId: string = 'default-profile'): Promise<TxRow[]> {
+  const { data } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('investment_id', id)
+    .eq('user_id', userId)
+    .order('date', { ascending: true })
+    .order('id', { ascending: true });
+
+  return (data || []).map(t => ({
+    ...t,
+    amount: Number(t.amount),
+    price_per_share: t.price_per_share != null ? Number(t.price_per_share) : null,
+    shares: t.shares != null ? Number(t.shares) : null,
+  }));
 }
