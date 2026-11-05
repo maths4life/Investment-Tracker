@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-bg text-text font-sans;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded
+           border border-divider bg-surface text-text
+           hover:bg-fill transition-colors duration-100
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-text text-white border-text hover:bg-[#2d3540];
+  }
+
+  .btn-danger {
+    @apply text-negative border-[#f0d0cc] hover:bg-[#fef5f4];
+  }
+
+  .input {
+    @apply w-full px-3 py-2 text-sm bg-surface border border-divider rounded
+           focus:outline-none focus:ring-1 focus:ring-text/20 focus:border-text/40
+           placeholder:text-muted;
+  }
+
+  .select {
+    @apply input appearance-none cursor-pointer;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-muted mb-1;
+  }
+
+  .field-error {
+    @apply mt-1 text-xs text-negative;
+  }
+
+  .table-base {
+    @apply w-full text-sm border-collapse;
+  }
+
+  .table-base th {
+    @apply text-xs font-medium text-muted uppercase tracking-wide text-left
+           border-b border-divider py-2 px-3;
+  }
+
+  .table-base td {
+    @apply py-2.5 px-3 border-b border-divider;
+  }
+
+  .table-base tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table-base tbody tr:hover td {
+    @apply bg-fill;
+  }
+
+  .section-heading {
+    @apply text-[15px] font-medium text-text;
+  }
+
+  .value-positive {
+    @apply text-positive;
+  }
+
+  .value-negative {
+    @apply text-negative;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
