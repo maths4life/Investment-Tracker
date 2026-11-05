@@ -7,9 +7,11 @@ const BASE = '/api';
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  const currentProfile = localStorage.getItem('app_current_profile') || 'default-profile';
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'x-user-id': currentProfile,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options?.headers as Record<string, string>),
   };

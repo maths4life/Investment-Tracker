@@ -59,10 +59,11 @@ interface DbTxRow {
 
 // PATCH /api/transactions/:id
 router.patch('/:id', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as DbTxRow | undefined;
+  const existing = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId) as DbTxRow | undefined;
   if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
 
   const parsed = UpdateTxSchema.safeParse(req.body);
@@ -87,21 +88,22 @@ router.patch('/:id', (req, res) => {
   db.prepare(`
     UPDATE transactions
     SET type = ?, date = ?, amount = ?, note = ?, stock_name = ?, shares = ?, price_per_share = ?
-    WHERE id = ?
-  `).run(merged.type, merged.date, merged.amount, merged.note ?? null, merged.stock_name ?? null, merged.shares ?? null, merged.price_per_share ?? null, id);
+    WHERE id = ? AND user_id = ?
+  `).run(merged.type, merged.date, merged.amount, merged.note ?? null, merged.stock_name ?? null, merged.shares ?? null, merged.price_per_share ?? null, id, userId);
 
-  res.json(db.prepare('SELECT * FROM transactions WHERE id = ?').get(id));
+  res.json(db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId));
 });
 
 // DELETE /api/transactions/:id
 router.delete('/:id', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
 
-  db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
+  db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(id, userId);
   res.status(204).end();
 });
 

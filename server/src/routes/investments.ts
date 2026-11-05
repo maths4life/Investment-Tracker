@@ -19,11 +19,12 @@ const UpdateInvestmentSchema = z.object({
 });
 
 // GET /api/investments
-router.get('/', (_req, res) => {
-  const rows = db.prepare('SELECT * FROM investments ORDER BY created_at DESC').all() as InvestmentRow[];
+router.get('/', (req, res) => {
+  const userId = req.userId;
+  const rows = db.prepare('SELECT * FROM investments WHERE user_id = ? ORDER BY created_at DESC').all(userId) as InvestmentRow[];
   const today = new Date();
   const investments = rows.map(inv => {
-    const txs = getAllTxsForInvestment(inv.id);
+    const txs = getAllTxsForInvestment(inv.id, userId);
     const metrics = computeMetrics(txs, today);
     const valueUpdates = txs.filter(t => t.type === 'value_update');
     const lastUpdated = valueUpdates.sort((a, b) => b.date.localeCompare(a.date))[0]?.date ?? null;
@@ -40,31 +41,34 @@ router.get('/', (_req, res) => {
 
 // POST /api/investments
 router.post('/', (req, res) => {
+  const userId = req.userId;
   const parsed = CreateInvestmentSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
     return;
   }
   const { name, category } = parsed.data;
-  const result = db.prepare('INSERT INTO investments (name, category) VALUES (?, ?)').run(name, category);
-  const inv = db.prepare('SELECT * FROM investments WHERE id = ?').get(Number(result.lastInsertRowid));
+  const result = db.prepare('INSERT INTO investments (user_id, name, category) VALUES (?, ?, ?)').run(userId, name, category);
+  const inv = db.prepare('SELECT * FROM investments WHERE id = ? AND user_id = ?').get(Number(result.lastInsertRowid), userId);
   res.status(201).json(inv);
 });
 
 // GET /api/investments/:id
 router.get('/:id', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
-  const inv = getInvestmentWithMetrics(id);
+  const inv = getInvestmentWithMetrics(id, userId);
   if (!inv) { res.status(404).json({ error: 'Not found' }); return; }
   res.json(inv);
 });
 
 // PATCH /api/investments/:id
 router.patch('/:id', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
-  const existing = db.prepare('SELECT * FROM investments WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM investments WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
 
   const parsed = UpdateInvestmentSchema.safeParse(req.body);
@@ -73,31 +77,33 @@ router.patch('/:id', (req, res) => {
     return;
   }
   const { name, category } = parsed.data;
-  if (name) db.prepare('UPDATE investments SET name = ? WHERE id = ?').run(name, id);
-  if (category) db.prepare('UPDATE investments SET category = ? WHERE id = ?').run(category, id);
+  if (name) db.prepare('UPDATE investments SET name = ? WHERE id = ? AND user_id = ?').run(name, id, userId);
+  if (category) db.prepare('UPDATE investments SET category = ? WHERE id = ? AND user_id = ?').run(category, id, userId);
 
-  res.json(getInvestmentWithMetrics(id));
+  res.json(getInvestmentWithMetrics(id, userId));
 });
 
 // DELETE /api/investments/:id
 router.delete('/:id', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
-  const existing = db.prepare('SELECT * FROM investments WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT * FROM investments WHERE id = ? AND user_id = ?').get(id, userId);
   if (!existing) { res.status(404).json({ error: 'Not found' }); return; }
-  db.prepare('DELETE FROM investments WHERE id = ?').run(id);
+  db.prepare('DELETE FROM investments WHERE id = ? AND user_id = ?').run(id, userId);
   res.status(204).end();
 });
 
 // GET /api/investments/:id/history
 router.get('/:id/history', (req, res) => {
+  const userId = req.userId;
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const inv = db.prepare('SELECT * FROM investments WHERE id = ?').get(id);
+  const inv = db.prepare('SELECT * FROM investments WHERE id = ? AND user_id = ?').get(id, userId);
   if (!inv) { res.status(404).json({ error: 'Not found' }); return; }
 
-  const txs = getAllTxsForInvestment(id);
+  const txs = getAllTxsForInvestment(id, userId);
   if (txs.length === 0) { res.json([]); return; }
 
   const range = req.query.range as string || 'ALL';

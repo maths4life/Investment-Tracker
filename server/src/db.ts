@@ -78,6 +78,7 @@ export function initDb(): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS investments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT 'default-profile',
       name TEXT NOT NULL,
       category TEXT NOT NULL CHECK(category IN ('Stocks','Mutual Funds','Fixed Deposits','Gold','PPF/EPF','Crypto','Other')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -85,6 +86,7 @@ export function initDb(): void {
 
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT 'default-profile',
       investment_id INTEGER NOT NULL REFERENCES investments(id) ON DELETE CASCADE,
       type TEXT NOT NULL CHECK(type IN ('add','withdraw','value_update')),
       date TEXT NOT NULL,
@@ -97,17 +99,23 @@ export function initDb(): void {
     );
 
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
+      user_id TEXT NOT NULL DEFAULT 'default-profile',
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
     );
 
     CREATE TABLE IF NOT EXISTS holdings_prices (
+      user_id TEXT NOT NULL DEFAULT 'default-profile',
       investment_id INTEGER NOT NULL REFERENCES investments(id) ON DELETE CASCADE,
       stock_name TEXT NOT NULL,
       price_per_share INTEGER NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (investment_id, stock_name)
+      PRIMARY KEY (user_id, investment_id, stock_name)
     );
+
+    CREATE INDEX IF NOT EXISTS idx_investments_user_id ON investments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 
     CREATE INDEX IF NOT EXISTS idx_transactions_investment_id ON transactions(investment_id);
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);

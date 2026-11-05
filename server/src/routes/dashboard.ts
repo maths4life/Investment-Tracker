@@ -11,9 +11,10 @@ import { getAllTxsForInvestment, type InvestmentRow } from '../helpers.js';
 
 const router = Router();
 
-router.get('/', (_req, res) => {
+router.get('/', (req, res) => {
+  const userId = req.userId;
   const today = new Date();
-  const investments = db.prepare('SELECT * FROM investments').all() as InvestmentRow[];
+  const investments = db.prepare('SELECT * FROM investments WHERE user_id = ?').all(userId) as InvestmentRow[];
 
   let totalAdded = 0;
   let totalWithdrawn = 0;
@@ -25,7 +26,7 @@ router.get('/', (_req, res) => {
   const updateDueList: { id: number; name: string; daysSince: number | null }[] = [];
 
   for (const inv of investments) {
-    const txs = getAllTxsForInvestment(inv.id);
+    const txs = getAllTxsForInvestment(inv.id, userId);
     allTxs.push(...txs);
     const metrics = computeMetrics(txs, today);
     perInvMetrics.push({ inv, metrics, txs });
@@ -82,12 +83,13 @@ router.get('/', (_req, res) => {
     SELECT t.*, i.name as investment_name, i.category
     FROM transactions t
     JOIN investments i ON i.id = t.investment_id
+    WHERE t.user_id = ?
     ORDER BY t.date DESC, t.id DESC
     LIMIT 8
-  `).all();
+  `).all(userId);
 
   // Settings: target allocation
-  const targetRow = db.prepare("SELECT value FROM settings WHERE key = 'target_allocation'").get() as { value: string } | undefined;
+  const targetRow = db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'target_allocation'").get(userId) as { value: string } | undefined;
   let targetAllocation: Record<string, number> = {};
   if (targetRow?.value) {
     try {
@@ -113,14 +115,15 @@ router.get('/', (_req, res) => {
 
 // GET /api/portfolio/history
 router.get('/history', (req, res) => {
+  const userId = req.userId;
   const range = (req.query.range as string) || 'ALL';
   const today = new Date();
   const toDate = today.toISOString().slice(0, 10);
 
-  const investments = db.prepare('SELECT * FROM investments').all() as InvestmentRow[];
+  const investments = db.prepare('SELECT * FROM investments WHERE user_id = ?').all(userId) as InvestmentRow[];
   const sets: InvestmentTxSet[] = investments.map(inv => ({
     investmentId: inv.id,
-    txs: getAllTxsForInvestment(inv.id),
+    txs: getAllTxsForInvestment(inv.id, userId),
   }));
 
   const allTxs = sets.flatMap(s => s.txs);

@@ -7,6 +7,7 @@ import txCrudRouter from './routes/txCrud.js';
 import dashboardRouter from './routes/dashboard.js';
 import settingsRouter from './routes/settings.js';
 import exportImportRouter from './routes/exportImport.js';
+import { authMiddleware } from './middleware/auth.js';
 import { runSeed } from './seed.js';
 
 const PORT = process.env.PORT ?? 3001;
@@ -23,6 +24,7 @@ if (process.env.AUTO_SEED === 'true' && isEmpty()) {
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
 app.use(express.json({ limit: '10mb' }));
+app.use(authMiddleware); // Scopes all endpoints by userId
 
 // API routes
 app.use('/api/investments', investmentsRouter);

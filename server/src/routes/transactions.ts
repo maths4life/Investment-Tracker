@@ -47,17 +47,18 @@ function validateBusinessRules(
 
 // GET /api/investments/:id/transactions
 router.get('/', (req, res) => {
+  const userId = req.userId;
   const investmentId = parseInt(req.params.id, 10);
   if (isNaN(investmentId)) { res.status(400).json({ error: 'Invalid investment id' }); return; }
 
-  const inv = db.prepare('SELECT id FROM investments WHERE id = ?').get(investmentId);
+  const inv = db.prepare('SELECT id FROM investments WHERE id = ? AND user_id = ?').get(investmentId, userId);
   if (!inv) { res.status(404).json({ error: 'Investment not found' }); return; }
 
   const { type, from, to, stock, q } = req.query as Record<string, string>;
 
   // Build query with filters
-  let sql = 'SELECT * FROM transactions WHERE investment_id = ?';
-  const params: (string | number)[] = [investmentId];
+  let sql = 'SELECT * FROM transactions WHERE investment_id = ? AND user_id = ?';
+  const params: (string | number)[] = [investmentId, userId];
 
   if (type && TX_TYPES.includes(type as typeof TX_TYPES[number])) {
     sql += ' AND type = ?'; params.push(type);
@@ -75,10 +76,11 @@ router.get('/', (req, res) => {
 
 // POST /api/investments/:id/transactions
 router.post('/', (req, res) => {
+  const userId = req.userId;
   const investmentId = parseInt(req.params.id, 10);
   if (isNaN(investmentId)) { res.status(400).json({ error: 'Invalid investment id' }); return; }
 
-  const inv = db.prepare('SELECT id FROM investments WHERE id = ?').get(investmentId);
+  const inv = db.prepare('SELECT id FROM investments WHERE id = ? AND user_id = ?').get(investmentId, userId);
   if (!inv) { res.status(404).json({ error: 'Investment not found' }); return; }
 
   const parsed = CreateTxSchema.safeParse(req.body);
@@ -93,11 +95,11 @@ router.post('/', (req, res) => {
   if (bizError) { res.status(422).json({ error: bizError }); return; }
 
   const result = db.prepare(`
-    INSERT INTO transactions (investment_id, type, date, amount, note, stock_name, shares, price_per_share)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(investmentId, type, date, amount, note ?? null, stock_name ?? null, shares ?? null, price_per_share ?? null);
+    INSERT INTO transactions (user_id, investment_id, type, date, amount, note, stock_name, shares, price_per_share)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(userId, investmentId, type, date, amount, note ?? null, stock_name ?? null, shares ?? null, price_per_share ?? null);
 
-  const tx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(result.lastInsertRowid));
+  const tx = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?').get(Number(result.lastInsertRowid), userId);
   res.status(201).json(tx);
 });
 

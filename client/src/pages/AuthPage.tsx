@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { KeyRound, ShieldCheck, ArrowRight, AlertCircle } from 'lucide-react';
+import { KeyRound, ShieldCheck, ArrowRight, AlertCircle, Plus, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
-  const { signInWithGoogle, signInWithMasterKey, isConfigured } = useAuth();
+  const { signInWithGoogle, signInWithMasterKey, profiles, isConfigured } = useAuth();
+  const [selectedProfile, setSelectedProfile] = useState<string>(profiles[0]?.id || 'Personal');
+  const [isAddingProfile, setIsAddingProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
   const [masterKey, setMasterKey] = useState('');
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -27,11 +30,17 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
     e.preventDefault();
     setErrorMsg(null);
 
-    const success = signInWithMasterKey(masterKey.trim());
+    const profileToUse = isAddingProfile ? newProfileName.trim() : selectedProfile;
+    if (!profileToUse) {
+      setErrorMsg('Please specify an account / profile name.');
+      return;
+    }
+
+    const success = signInWithMasterKey(profileToUse, masterKey.trim());
     if (success) {
       onLoginSuccess?.();
     } else {
-      setErrorMsg('Invalid Master Key. Please check the key in your .env or settings.');
+      setErrorMsg('Invalid Master Key. Default key is admin123 (or check VITE_MASTER_KEY in .env).');
     }
   };
 
@@ -94,12 +103,50 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
               <div className="w-full border-t border-divider" />
             </div>
             <div className="relative flex justify-center text-[11px] uppercase">
-              <span className="bg-surface px-2 text-muted">or use master key</span>
+              <span className="bg-surface px-2 text-muted">or choose profile</span>
             </div>
           </div>
 
-          {/* Option 2: Master Key Direct Login */}
-          <form onSubmit={handleMasterKeySignIn} className="space-y-3">
+          {/* Option 2: Profile Account Switcher + Master Key */}
+          <form onSubmit={handleMasterKeySignIn} className="space-y-3.5">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0">Select Account Profile</label>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingProfile(!isAddingProfile)}
+                  className="text-[11px] text-[#6B8CAE] hover:underline flex items-center gap-0.5"
+                >
+                  <Plus size={12} />
+                  {isAddingProfile ? 'Choose existing' : 'New account'}
+                </button>
+              </div>
+
+              {isAddingProfile ? (
+                <div className="relative">
+                  <Users size={14} className="absolute left-2.5 top-2.5 text-muted pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={newProfileName}
+                    onChange={(e) => setNewProfileName(e.target.value)}
+                    className="input pl-8 text-xs"
+                    placeholder="e.g. Malhar, Business, Mom"
+                  />
+                </div>
+              ) : (
+                <select
+                  value={selectedProfile}
+                  onChange={(e) => setSelectedProfile(e.target.value)}
+                  className="select text-xs w-full py-2"
+                >
+                  {profiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <div>
               <label className="label">Master Access Key</label>
               <div className="relative">
@@ -114,7 +161,7 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
                 />
               </div>
               <p className="text-[11px] text-muted mt-1">
-                Default: <code className="text-text">admin123</code> (set <code className="text-text">VITE_MASTER_KEY</code> in .env)
+                Default: <code className="text-text">admin123</code>
               </p>
             </div>
 
@@ -122,7 +169,7 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
               type="submit"
               className="btn btn-primary w-full justify-center py-2 text-xs"
             >
-              <span>Unlock Portfolio</span>
+              <span>Unlock {isAddingProfile ? (newProfileName || 'Account') : selectedProfile}</span>
               <ArrowRight size={13} strokeWidth={1.5} />
             </button>
           </form>
