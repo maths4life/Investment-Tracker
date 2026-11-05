@@ -24,6 +24,12 @@ if (process.env.AUTO_SEED === 'true' && isEmpty()) {
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
 app.use(express.json({ limit: '10mb' }));
+
+// Health check endpoint for root
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', message: 'Investment Tracker API is live and healthy' });
+});
+
 app.use(authMiddleware); // Scopes all endpoints by userId
 
 // API routes
