@@ -13,12 +13,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-bg">
-      {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-48 border-r border-divider bg-surface shrink-0">
+      {/* Sidebar - Sticky so account & sign out stay pinned to bottom */}
+      <aside className="hidden md:flex flex-col w-48 border-r border-divider bg-surface shrink-0 h-screen sticky top-0">
         <div className="px-5 py-5 border-b border-divider">
           <span className="text-[15px] font-medium text-text">Portfolio</span>
         </div>
-        <nav className="flex-1 py-3">
+        <nav className="flex-1 py-3 overflow-y-auto">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -38,16 +38,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* User Account / Sign out */}
+        {/* User Account / Sign out pinned at the bottom */}
         {isConfigured && user && (
-          <div className="p-3 border-t border-divider">
-            <div className="px-2 py-1.5 mb-1.5 text-xs text-muted flex items-center gap-2 truncate">
-              <UserIcon size={13} className="shrink-0" />
+          <div className="p-3 border-t border-divider bg-surface mt-auto">
+            <div className="px-2 py-1.5 mb-1 text-xs text-muted flex items-center gap-2 truncate">
+              <UserIcon size={13} className="shrink-0 text-text/60" />
               <span className="truncate" title={user.email}>{user.email}</span>
             </div>
             <button
               onClick={() => signOut()}
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-muted hover:text-negative hover:bg-fill rounded transition-colors"
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-muted hover:text-negative hover:bg-fill rounded transition-colors text-left"
             >
               <LogOut size={13} strokeWidth={1.5} />
               Sign out

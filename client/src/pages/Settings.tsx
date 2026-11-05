@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Upload, Info, Check, AlertCircle, KeyRound, Trash2, Plus, ShieldCheck, User } from 'lucide-react';
+import { Download, Upload, Info, Check, AlertCircle, KeyRound, Trash2, Plus, ShieldCheck, User, LogOut } from 'lucide-react';
 import { getSettings, updateSettings, exportJSON, exportCSV, importJSON } from '../lib/api';
 import { useApi } from '../hooks/useApi';
 import { CATEGORIES } from '../types';
@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
-  const { user, isConfigured, registerPasskey, listPasskeys, deletePasskey } = useAuth();
+  const { user, isConfigured, signOut, registerPasskey, listPasskeys, deletePasskey } = useAuth();
   const { data: settings, loading, refetch } = useApi<SettingsType>(getSettings);
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
@@ -205,11 +205,20 @@ export default function Settings() {
       {/* Account & Passkey Management (when Supabase is configured) */}
       {isConfigured && user && (
         <section className="space-y-4">
-          <div className="border-b border-divider pb-2">
-            <h2 className="section-heading">Account & Passkeys</h2>
-            <p className="text-xs text-muted mt-0.5">
-              Signed in as <strong className="text-text">{user.email}</strong>
-            </p>
+          <div className="border-b border-divider pb-2 flex items-center justify-between">
+            <div>
+              <h2 className="section-heading">Account & Passkeys</h2>
+              <p className="text-xs text-muted mt-0.5">
+                Signed in as <strong className="text-text">{user.email}</strong>
+              </p>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="btn btn-danger text-xs py-1"
+            >
+              <LogOut size={13} strokeWidth={1.5} />
+              Sign out
+            </button>
           </div>
 
           <div className="bg-surface border border-divider rounded p-4 space-y-4">
