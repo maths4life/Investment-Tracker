@@ -38,5 +38,23 @@ router.put('/', (req, res) => {
   res.json(settings);
 });
 
+// DELETE /api/settings/account - Delete all account data for this profile
+router.delete('/account', (req, res) => {
+  const userId = req.userId;
+  try {
+    db.exec('BEGIN');
+    db.prepare('DELETE FROM holdings_prices WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM transactions WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM investments WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM settings WHERE user_id = ?').run(userId);
+    db.exec('COMMIT');
+    res.json({ success: true, message: `Account ${userId} deleted successfully.` });
+  } catch (err: unknown) {
+    try { db.exec('ROLLBACK'); } catch {}
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: 'Failed to delete account', details: msg });
+  }
+});
+
 export default router;
 

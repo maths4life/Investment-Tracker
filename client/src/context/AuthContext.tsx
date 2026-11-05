@@ -15,9 +15,9 @@ interface AuthContextType {
   profiles: ProfileAccount[];
   currentProfile: string;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signInWithMasterKey: (profileName: string, key: string) => boolean;
   addProfile: (name: string) => void;
+  removeProfile: (profileId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,11 +26,11 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isConfigured: false,
   profiles: [],
-  currentProfile: 'Default Portfolio',
+  currentProfile: 'Personal',
   signOut: async () => {},
-  signInWithGoogle: async () => ({ error: null }),
   signInWithMasterKey: () => false,
   addProfile: () => {},
+  removeProfile: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -78,10 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user?.email) {
-        setCurrentProfile(session.user.email);
-        localStorage.setItem('app_current_profile', session.user.email);
-      }
       setLoading(false);
     });
 
@@ -89,10 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (localStorage.getItem('app_master_auth') === 'true') return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user?.email) {
-        setCurrentProfile(session.user.email);
-        localStorage.setItem('app_current_profile', session.user.email);
-      }
       setLoading(false);
     });
 
@@ -109,6 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
   };
 
+  const removeProfile = (profileId: string) => {
+    const updated = profiles.filter(p => p.id !== profileId);
+    setProfiles(updated);
+    localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
+  };
+
   const signOut = async () => {
     localStorage.removeItem('app_master_auth');
     if (configured) {
@@ -118,24 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
-  // 1. One-click Google Sign-in
-  const signInWithGoogle = async () => {
-    try {
-      if (!configured) throw new Error('Supabase is not configured.');
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) return { error };
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
-    }
-  };
-
-  // 2. Profile + Master Key Sign-in
+  // Profile + Master Key Sign-in
   const signInWithMasterKey = (profileId: string, inputKey: string): boolean => {
     const configuredKey = import.meta.env.VITE_MASTER_KEY || 'admin123';
     if (inputKey && inputKey === configuredKey) {
@@ -143,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('app_master_auth', 'true');
       localStorage.setItem('app_current_profile', activeId);
 
-      // Add to saved profiles list if new
       addProfile(activeId);
 
       const masterUser: any = {
@@ -168,9 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profiles,
         currentProfile,
         signOut,
-        signInWithGoogle,
         signInWithMasterKey,
         addProfile,
+        removeProfile,
       }}
     >
       {children}

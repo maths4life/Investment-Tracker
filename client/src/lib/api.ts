@@ -70,6 +70,8 @@ export const deleteTransaction = (id: number) =>
 export const getSettings = () => request<import('../types').Settings>('/settings');
 export const updateSettings = (data: import('../types').Settings) =>
   request<import('../types').Settings>('/settings', { method: 'PUT', body: JSON.stringify(data) });
+export const deleteAccount = () =>
+  request<{ success: boolean; message: string }>('/settings/account', { method: 'DELETE' });
 
 // Export / Import
 export const exportJSON = () => window.open('/api/export/json', '_blank');

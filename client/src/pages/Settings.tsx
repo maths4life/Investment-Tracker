@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Download, Upload, Info, Check, AlertCircle, KeyRound, ShieldCheck, User, LogOut } from 'lucide-react';
-import { getSettings, updateSettings, exportJSON, exportCSV, importJSON } from '../lib/api';
+import { Download, Upload, Info, Check, AlertCircle, Trash2, ShieldAlert, LogOut } from 'lucide-react';
+import { getSettings, updateSettings, exportJSON, exportCSV, importJSON, deleteAccount } from '../lib/api';
 import { useApi } from '../hooks/useApi';
 import { CATEGORIES } from '../types';
 import type { Settings as SettingsType } from '../types';
@@ -8,12 +8,16 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, currentProfile, removeProfile } = useAuth();
   const { data: settings, loading, refetch } = useApi<SettingsType>(getSettings);
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [savingAlloc, setSavingAlloc] = useState(false);
+
+  // Account deletion state
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Dismissible notice state
   const [noticeDismissed, setNoticeDismissed] = useState(true);
@@ -153,23 +157,33 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Account Info & Sign Out */}
+      {/* Account Info & Sign Out / Delete Account */}
       {user && (
         <section className="space-y-4">
           <div className="border-b border-divider pb-2 flex items-center justify-between">
             <div>
-              <h2 className="section-heading">Account</h2>
+              <h2 className="section-heading">Active Account</h2>
               <p className="text-xs text-muted mt-0.5">
-                Signed in as <strong className="text-text">{user.email || 'Portfolio Owner'}</strong>
+                Current profile: <strong className="text-text font-medium">{currentProfile}</strong> ({user.email})
               </p>
             </div>
-            <button
-              onClick={() => signOut()}
-              className="btn btn-danger text-xs py-1"
-            >
-              <LogOut size={13} strokeWidth={1.5} />
-              Sign out
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => signOut()}
+                className="btn text-xs py-1"
+              >
+                <LogOut size={13} strokeWidth={1.5} />
+                Sign out
+              </button>
+              <button
+                onClick={() => setDeleteAccountModalOpen(true)}
+                className="btn btn-danger text-xs py-1"
+                title="Permanently delete this account profile"
+              >
+                <Trash2 size={13} strokeWidth={1.5} />
+                Delete Account
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -345,6 +359,48 @@ export default function Settings() {
               disabled={importing}
             >
               {importing ? 'Restoring...' : 'Replace All Data'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirmation Modal for Delete Account */}
+      <Modal
+        open={deleteAccountModalOpen}
+        onClose={() => setDeleteAccountModalOpen(false)}
+        title="Delete Account Profile"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text leading-relaxed">
+            Are you sure you want to permanently delete the <strong className="font-semibold">{currentProfile}</strong> account?
+          </p>
+          <div className="p-3 bg-[#fdf2f1] border border-[#f5c7c2] rounded text-xs text-negative leading-relaxed">
+            <strong>Permanent Action:</strong> All investments, transactions, and settings belonging to <strong>{currentProfile}</strong> will be permanently wiped from the database.
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <button
+              className="btn"
+              onClick={() => setDeleteAccountModalOpen(false)}
+              disabled={deletingAccount}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-danger"
+              disabled={deletingAccount}
+              onClick={async () => {
+                setDeletingAccount(true);
+                try {
+                  await deleteAccount();
+                  removeProfile(currentProfile);
+                  await signOut();
+                } catch (err: unknown) {
+                  alert(err instanceof Error ? err.message : 'Failed to delete account');
+                  setDeletingAccount(false);
+                }
+              }}
+            >
+              {deletingAccount ? 'Deleting...' : 'Delete Account Permanently'}
             </button>
           </div>
         </div>
