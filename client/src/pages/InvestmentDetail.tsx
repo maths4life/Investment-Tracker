@@ -173,27 +173,27 @@ export default function InvestmentDetail() {
       {isStocks && inv.holdings && inv.holdings.length > 0 && (
         <section>
           <h2 className="section-heading mb-3">Holdings</h2>
-          <div className="overflow-x-auto">
-            <table className="table-base">
+          <div className="overflow-x-auto border border-divider rounded">
+            <table className="table-base w-full table-fixed">
               <thead>
-                <tr>
-                  <th>Stock</th>
-                  <th className="text-right">Shares held</th>
-                  <th className="text-right">Avg buy price</th>
-                  <th className="text-right">Total cost</th>
-                  <th className="text-right">Current price</th>
-                  <th className="text-right">Current value</th>
+                <tr className="bg-fill/50">
+                  <th className="w-[20%] text-left">Stock</th>
+                  <th className="w-[16%] text-right">Shares held</th>
+                  <th className="w-[16%] text-right">Avg buy price</th>
+                  <th className="w-[16%] text-right">Total cost</th>
+                  <th className="w-[16%] text-right">Current price</th>
+                  <th className="w-[16%] text-right">Current value</th>
                 </tr>
               </thead>
               <tbody>
                 {inv.holdings.map(h => (
                   <tr key={h.stockName}>
-                    <td className="font-medium">{h.stockName}</td>
+                    <td className="font-medium text-left truncate">{h.stockName}</td>
                     <td className="text-right tabular-nums">{h.sharesHeld.toFixed(4)}</td>
                     <td className="text-right tabular-nums">{formatINR(h.avgBuyPrice)}</td>
                     <td className="text-right tabular-nums">{formatINR(h.totalCost)}</td>
                     <td className="text-right tabular-nums text-muted">{h.currentPrice != null ? formatINR(h.currentPrice) : '–'}</td>
-                    <td className="text-right tabular-nums">{h.currentValue != null ? formatINR(h.currentValue) : '–'}</td>
+                    <td className="text-right tabular-nums font-medium">{h.currentValue != null ? formatINR(h.currentValue) : '–'}</td>
                   </tr>
                 ))}
               </tbody>
