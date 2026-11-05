@@ -13,9 +13,9 @@ const PORT = process.env.PORT ?? 3001;
 
 initDb();
 
-// Auto-seed on first start
-if (isEmpty()) {
-  console.log('[server] Database is empty, running seed...');
+// Seed only when explicitly requested via `npm run seed` or AUTO_SEED=true
+if (process.env.AUTO_SEED === 'true' && isEmpty()) {
+  console.log('[server] Database is empty and AUTO_SEED is set, running seed...');
   runSeed();
   console.log('[server] Seed complete.');
 }
