@@ -86,6 +86,8 @@ function DonutTooltip({ active, payload, targetAlloc }: {
 export default function Dashboard() {
   const { data, loading, error, refetch } = useApi<DashboardData>(getDashboard);
   const [range, setRange] = useState<string>('1Y');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
   const { data: history, loading: histLoading } = useApi<PortfolioPoint[]>(
     useCallback(() => getPortfolioHistory(range), [range])
   );
@@ -113,7 +115,6 @@ export default function Dashboard() {
   // Target allocations (from settings / API)
   const targetAlloc: Record<string, number> = data.targetAllocation || {};
   const hasTargets = Object.keys(targetAlloc).length > 0;
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   return (
     <div className="space-y-8 pb-16 md:pb-0">
