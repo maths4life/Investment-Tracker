@@ -11,11 +11,11 @@ const TX_TYPES = ['add', 'withdraw', 'value_update'] as const;
 const CreateTxSchema = z.object({
   type: z.enum(TX_TYPES),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  amount: z.number().positive('Amount must be positive').int('Amount must be an integer (paise)'),
+  amount: z.number().positive('Amount must be positive'),
   note: z.string().max(500).optional().nullable(),
   stock_name: z.string().max(100).optional().nullable(),
   shares: z.number().positive().optional().nullable(),
-  price_per_share: z.number().positive().int().optional().nullable(),
+  price_per_share: z.number().positive().optional().nullable(),
 });
 
 function validateBusinessRules(

@@ -29,3 +29,4 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   req.userId = userId;
   next();
 }
+

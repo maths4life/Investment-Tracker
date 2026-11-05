@@ -354,6 +354,25 @@ function TxModal({ open, mode, investmentId, isStocks, initialTx, onClose, onSav
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Auto-calculate Total Amount when Shares or Price Per Share changes
+  const handleSharesChange = (val: string) => {
+    setSharesStr(val);
+    const sharesNum = parseFloat(val);
+    const priceNum = parseFloat(priceStr);
+    if (!isNaN(sharesNum) && !isNaN(priceNum) && sharesNum > 0 && priceNum > 0) {
+      setAmountStr((sharesNum * priceNum).toFixed(2));
+    }
+  };
+
+  const handlePriceChange = (val: string) => {
+    setPriceStr(val);
+    const priceNum = parseFloat(val);
+    const sharesNum = parseFloat(sharesStr);
+    if (!isNaN(sharesNum) && !isNaN(priceNum) && sharesNum > 0 && priceNum > 0) {
+      setAmountStr((sharesNum * priceNum).toFixed(2));
+    }
+  };
+
   // Reset on open
   const handleOpen = () => {
     if (!open) return;
@@ -431,18 +450,32 @@ function TxModal({ open, mode, investmentId, isStocks, initialTx, onClose, onSav
           <>
             <div>
               <label className="label">Stock name / ticker</label>
-              <input className="input" value={stockName} onChange={e => setStockName(e.target.value)} placeholder="e.g. HDFC Bank" />
+              <input className="input" value={stockName} onChange={e => setStockName(e.target.value)} placeholder="e.g. HDFC Bank, TMPV" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Shares</label>
-                <input className="input" type="number" min="0" step="0.0001"
-                  value={sharesStr} onChange={e => setSharesStr(e.target.value)} placeholder="0" />
+                <label className="label">Number of shares</label>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={sharesStr}
+                  onChange={e => handleSharesChange(e.target.value)}
+                  placeholder="e.g. 226.5"
+                />
               </div>
               <div>
-                <label className="label">Price per share (₹, optional)</label>
-                <input className="input" type="number" min="0" step="0.01"
-                  value={priceStr} onChange={e => setPriceStr(e.target.value)} placeholder="0.00" />
+                <label className="label">Price per share (₹)</label>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={priceStr}
+                  onChange={e => handlePriceChange(e.target.value)}
+                  placeholder="e.g. 288.75"
+                />
               </div>
             </div>
           </>
