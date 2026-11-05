@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node --experimental-sqlite node_modules/tsx/dist/cli.mjs src/index.ts",
     "dev": "node --experimental-sqlite node_modules/tsx/dist/cli.mjs watch src/index.ts",
     "build": "tsc",
     "seed": "node --experimental-sqlite node_modules/tsx/dist/cli.mjs src/seed.ts",

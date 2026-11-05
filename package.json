@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "npm start --prefix server",
     "setup": "npm install --prefix server && npm install --prefix client",
     "dev": "concurrently --names \"server,client\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm --prefix client install && npm --prefix client run build",
     "seed": "npm run seed --prefix server",
     "test": "npm test --prefix server"
   },
