@@ -81,7 +81,7 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
                     value={newProfileName}
                     onChange={(e) => setNewProfileName(e.target.value)}
                     className="input pl-8 text-xs"
-                    placeholder="e.g. Malhar, Business, Mom"
+                    placeholder="Username"
                   />
                 </div>
               ) : (
