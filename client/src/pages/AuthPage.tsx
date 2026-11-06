@@ -40,7 +40,7 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
       if (success) {
         onLoginSuccess?.();
       } else {
-        setErrorMsg('Incorrect password for this account. (Default for initial accounts is admin123).');
+        setErrorMsg('Incorrect password for this account.');
       }
     }
   };
@@ -128,11 +128,11 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
                   placeholder={isAddingProfile ? 'Create any password (no limits)' : 'Enter password...'}
                 />
               </div>
-              <p className="text-[11px] text-muted mt-1">
-                {isAddingProfile
-                  ? 'No character or complexity limits.'
-                  : 'Default for original accounts: admin123'}
-              </p>
+              {isAddingProfile && (
+                <p className="text-[11px] text-muted mt-1">
+                  No character or complexity limits.
+                </p>
+              )}
             </div>
 
             <button
