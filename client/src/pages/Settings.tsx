@@ -391,7 +391,7 @@ export default function Settings() {
                 setDeletingAccount(true);
                 try {
                   await deleteAccount();
-                  removeProfile(currentProfile);
+                  await removeProfile(currentProfile);
                   await signOut();
                 } catch (err: unknown) {
                   alert(err instanceof Error ? err.message : 'Failed to delete account');

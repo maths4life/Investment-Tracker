@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getProfiles, createProfile, deleteProfile } from '../lib/api';
 
 export interface ProfileAccount {
   id: string;
@@ -16,8 +17,8 @@ interface AuthContextType {
   currentProfile: string;
   signOut: () => Promise<void>;
   signInWithMasterKey: (profileName: string, key: string) => boolean;
-  addProfile: (name: string) => void;
-  removeProfile: (profileId: string) => void;
+  addProfile: (name: string) => Promise<void>;
+  removeProfile: (profileId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,8 +30,8 @@ const AuthContext = createContext<AuthContextType>({
   currentProfile: 'Personal',
   signOut: async () => {},
   signInWithMasterKey: () => false,
-  addProfile: () => {},
-  removeProfile: () => {},
+  addProfile: async () => {},
+  removeProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -52,6 +53,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const configured = isSupabaseConfigured();
+
+  // Load profiles from Supabase cloud
+  useEffect(() => {
+    getProfiles()
+      .then(fetched => {
+        if (Array.isArray(fetched) && fetched.length > 0) {
+          setProfiles(fetched);
+          localStorage.setItem('app_saved_profiles', JSON.stringify(fetched));
+        }
+      })
+      .catch(err => console.error('Failed to load cloud profiles:', err));
+  }, []);
 
   // Load active session
   useEffect(() => {
@@ -91,20 +104,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [configured]);
 
-  const addProfile = (name: string) => {
+  const addProfile = async (name: string) => {
     const clean = name.trim();
     if (!clean) return;
     const exists = profiles.some(p => p.id.toLowerCase() === clean.toLowerCase());
-    if (exists) return;
-    const updated = [...profiles, { id: clean, name: `${clean} Portfolio` }];
-    setProfiles(updated);
-    localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
+    if (!exists) {
+      const newP: ProfileAccount = { id: clean, name: `${clean} Portfolio` };
+      const updated = [...profiles, newP];
+      setProfiles(updated);
+      localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
+    }
+    try {
+      await createProfile(clean);
+    } catch (e) {
+      console.error('Failed to sync new profile to cloud:', e);
+    }
   };
 
-  const removeProfile = (profileId: string) => {
+  const removeProfile = async (profileId: string) => {
     const updated = profiles.filter(p => p.id !== profileId);
     setProfiles(updated);
     localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
+    try {
+      await deleteProfile(profileId);
+    } catch (e) {
+      console.error('Failed to delete profile from cloud:', e);
+    }
   };
 
   const signOut = async () => {

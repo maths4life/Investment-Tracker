@@ -6,6 +6,7 @@ import txCrudRouter from './routes/txCrud.js';
 import dashboardRouter from './routes/dashboard.js';
 import settingsRouter from './routes/settings.js';
 import exportImportRouter from './routes/exportImport.js';
+import profilesRouter from './routes/profiles.js';
 import { authMiddleware } from './middleware/auth.js';
 
 try {
@@ -26,6 +27,7 @@ app.get('/', (_req, res) => {
 app.use(authMiddleware); // Scopes all endpoints by userId
 
 // API routes
+app.use('/api/profiles', profilesRouter);
 app.use('/api/investments', investmentsRouter);
 app.use('/api/investments/:id/transactions', transactionsRouter);
 app.use('/api/transactions', txCrudRouter);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { KeyRound, ShieldCheck, ArrowRight, AlertCircle, Plus, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +9,12 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
   const [newProfileName, setNewProfileName] = useState('');
   const [masterKey, setMasterKey] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profiles.length > 0 && (!selectedProfile || !profiles.some(p => p.id === selectedProfile))) {
+      setSelectedProfile(profiles[0].id);
+    }
+  }, [profiles]);
 
   const handleMasterKeySignIn = (e: React.FormEvent) => {
     e.preventDefault();

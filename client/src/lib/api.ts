@@ -38,6 +38,17 @@ export class ApiError extends Error {
   }
 }
 
+// Profiles
+export interface ProfileAccount {
+  id: string;
+  name: string;
+}
+export const getProfiles = () => request<ProfileAccount[]>('/profiles');
+export const createProfile = (name: string) =>
+  request<ProfileAccount>('/profiles', { method: 'POST', body: JSON.stringify({ name }) });
+export const deleteProfile = (id: string) =>
+  request<{ success: boolean; message: string }>(`/profiles/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
 // Dashboard
 export const getDashboard = () => request<import('../types').DashboardData>('/dashboard');
 export const getPortfolioHistory = (range: string) => request<import('../types').PortfolioPoint[]>(`/portfolio/history?range=${range}`);
