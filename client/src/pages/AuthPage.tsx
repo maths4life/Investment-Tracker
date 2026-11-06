@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
   const { signInWithPassword, addProfile, profiles } = useAuth();
-  const [selectedProfile, setSelectedProfile] = useState<string>(profiles[0]?.id || 'Personal');
+  const [selectedProfile, setSelectedProfile] = useState<string>(profiles[0]?.id || '');
   const [isAddingProfile, setIsAddingProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [password, setPassword] = useState('');

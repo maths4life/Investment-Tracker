@@ -24,7 +24,7 @@ async function getStoredProfiles(): Promise<ProfileItem[]> {
   if (data?.value) {
     try {
       const parsed = JSON.parse(data.value);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch {}
   }
 

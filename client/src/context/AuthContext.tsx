@@ -47,42 +47,40 @@ async function loadProfilesFromSupabase(): Promise<ProfileAccount[]> {
       .eq('key', 'profiles')
       .maybeSingle();
 
-    const profileMap = new Map<string, ProfileAccount>();
-    profileMap.set('personal', { id: 'Personal', name: 'Personal Portfolio' });
-    profileMap.set('family', { id: 'Family', name: 'Family Portfolio' });
-    profileMap.set('malhar', { id: 'Malhar', name: 'Malhar Portfolio' });
-
     if (settingRow?.value) {
       try {
         const parsed = JSON.parse(settingRow.value);
         if (Array.isArray(parsed)) {
-          for (const p of parsed) {
-            if (p?.id) profileMap.set(p.id.toLowerCase(), p);
-          }
+          // Return the exact stored list from cloud. Never re-insert deleted profiles.
+          return parsed;
         }
       } catch {}
     }
 
+    // Only if nothing exists yet in Supabase:
     const { data: invRows } = await supabase
       .from('investments')
       .select('user_id');
 
+    const uniqueIds = new Set<string>();
     for (const row of invRows || []) {
       if (row.user_id && row.user_id !== '__global__') {
-        if (!profileMap.has(row.user_id.toLowerCase())) {
-          profileMap.set(row.user_id.toLowerCase(), { id: row.user_id, name: `${row.user_id} Portfolio` });
-        }
+        uniqueIds.add(row.user_id);
       }
     }
 
-    return Array.from(profileMap.values());
+    if (uniqueIds.size > 0) {
+      return Array.from(uniqueIds).map(id => ({ id, name: `${id} Portfolio` }));
+    }
+
+    return [{ id: 'Malhar', name: 'Malhar Portfolio' }];
   } catch (err) {
     console.error('Failed to load profiles from Supabase:', err);
-    return [
-      { id: 'Personal', name: 'Personal Portfolio' },
-      { id: 'Family', name: 'Family Portfolio' },
-      { id: 'Malhar', name: 'Malhar Portfolio' },
-    ];
+    try {
+      const saved = localStorage.getItem('app_saved_profiles');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
   }
 }
 
@@ -93,16 +91,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profiles, setProfiles] = useState<ProfileAccount[]>(() => {
     try {
       const saved = localStorage.getItem('app_saved_profiles');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
-    return [
-      { id: 'Personal', name: 'Personal Portfolio' },
-      { id: 'Family', name: 'Family Portfolio' },
-      { id: 'Malhar', name: 'Malhar Portfolio' },
-    ];
+    return [];
   });
   const [currentProfile, setCurrentProfile] = useState<string>(() => {
-    return localStorage.getItem('app_current_profile') || 'Personal';
+    return localStorage.getItem('app_current_profile') || '';
   });
 
   const configured = isSupabaseConfigured();
