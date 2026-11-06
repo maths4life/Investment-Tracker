@@ -162,12 +162,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!clean) return;
     const exists = profiles.some(p => p.id.toLowerCase() === clean.toLowerCase());
     let updated = profiles;
+    const newP: ProfileAccount = { id: clean, name: `${clean} Portfolio`, password: password ?? '' };
     if (!exists) {
-      const newP: ProfileAccount = { id: clean, name: `${clean} Portfolio`, password: password ?? '' };
       updated = [...profiles, newP];
       setProfiles(updated);
       localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
     }
+
+    // Immediately activate the new account session
+    localStorage.setItem('app_master_auth', 'true');
+    localStorage.setItem('app_current_profile', clean);
+    const masterUser: any = {
+      id: clean,
+      email: `${clean.toLowerCase()}@portfolio.local`,
+      user_metadata: { full_name: `${clean} Portfolio` },
+    };
+    setUser(masterUser);
+    setCurrentProfile(clean);
+
     try {
       await supabase
         .from('settings')
@@ -224,11 +236,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sign-in with portfolio password (or master key fallback)
   const signInWithPassword = (profileId: string, inputPass: string): boolean => {
     const cleanId = profileId.trim();
-    const target = profiles.find(p => p.id.toLowerCase() === cleanId.toLowerCase());
+    let target = profiles.find(p => p.id.toLowerCase() === cleanId.toLowerCase());
+    if (!target) {
+      try {
+        const saved: ProfileAccount[] = JSON.parse(localStorage.getItem('app_saved_profiles') || '[]');
+        target = saved.find(p => p.id.toLowerCase() === cleanId.toLowerCase());
+      } catch {}
+    }
     const masterKey = import.meta.env.VITE_MASTER_KEY || 'admin123';
 
     let isMatch = false;
-    if (target?.password) {
+    if (target && target.password !== undefined && target.password !== null && target.password !== '') {
       isMatch = target.password === inputPass || inputPass === masterKey;
     } else {
       isMatch = inputPass === 'admin123' || inputPass === masterKey;

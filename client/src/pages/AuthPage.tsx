@@ -28,12 +28,8 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
       }
 
       await addProfile(cleanName, password);
-      const success = signInWithPassword(cleanName, password);
-      if (success) {
-        onLoginSuccess?.();
-      } else {
-        setErrorMsg('Could not log in with the created account.');
-      }
+      onLoginSuccess?.();
+      return;
     } else {
       if (!selectedProfile) {
         setErrorMsg('Please select an account.');
