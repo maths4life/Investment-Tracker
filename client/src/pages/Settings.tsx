@@ -8,16 +8,18 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
-  const { user, signOut, currentProfile, removeProfile } = useAuth();
+  const { user, signOut, currentProfile, removeProfile, updateProfilePassword } = useAuth();
   const { data: settings, loading, refetch } = useApi<SettingsType>(getSettings);
 
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [savingAlloc, setSavingAlloc] = useState(false);
 
-  // Account deletion state
+  // Account deletion & password state
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [passwordSavedMsg, setPasswordSavedMsg] = useState(false);
 
   // Dismissible notice state
   const [noticeDismissed, setNoticeDismissed] = useState(true);
@@ -182,6 +184,41 @@ export default function Settings() {
                 <Trash2 size={13} strokeWidth={1.5} />
                 Delete Account
               </button>
+            </div>
+          </div>
+
+          {/* Change Portfolio Password */}
+          <div className="p-3 bg-surface border border-divider rounded space-y-2">
+            <p className="text-xs font-medium text-text">Portfolio Password</p>
+            <p className="text-[11px] text-muted">
+              Set or change the individual password for this portfolio. No character length or complexity restrictions.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="password"
+                placeholder="New password..."
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className="input text-xs max-w-xs"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newPasswordInput) return;
+                  await updateProfilePassword(newPasswordInput);
+                  setPasswordSavedMsg(true);
+                  setNewPasswordInput('');
+                  setTimeout(() => setPasswordSavedMsg(false), 3000);
+                }}
+                className="btn text-xs py-1.5"
+              >
+                Save Password
+              </button>
+              {passwordSavedMsg && (
+                <span className="text-xs text-positive flex items-center gap-1 font-medium">
+                  <Check size={13} strokeWidth={2} /> Password updated
+                </span>
+              )}
             </div>
           </div>
         </section>

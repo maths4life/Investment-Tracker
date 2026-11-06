@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 export interface ProfileAccount {
   id: string;
   name: string;
+  password?: string;
 }
 
 interface AuthContextType {
@@ -15,9 +16,11 @@ interface AuthContextType {
   profiles: ProfileAccount[];
   currentProfile: string;
   signOut: () => Promise<void>;
+  signInWithPassword: (profileName: string, password: string) => boolean;
   signInWithMasterKey: (profileName: string, key: string) => boolean;
-  addProfile: (name: string) => Promise<void>;
+  addProfile: (name: string, password?: string) => Promise<void>;
   removeProfile: (profileId: string) => Promise<void>;
+  updateProfilePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -28,9 +31,11 @@ const AuthContext = createContext<AuthContextType>({
   profiles: [],
   currentProfile: 'Personal',
   signOut: async () => {},
+  signInWithPassword: () => false,
   signInWithMasterKey: () => false,
   addProfile: async () => {},
   removeProfile: async () => {},
+  updateProfilePassword: async () => {},
 });
 
 async function loadProfilesFromSupabase(): Promise<ProfileAccount[]> {
@@ -152,13 +157,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [configured]);
 
-  const addProfile = async (name: string) => {
+  const addProfile = async (name: string, password?: string) => {
     const clean = name.trim();
     if (!clean) return;
     const exists = profiles.some(p => p.id.toLowerCase() === clean.toLowerCase());
     let updated = profiles;
     if (!exists) {
-      const newP: ProfileAccount = { id: clean, name: `${clean} Portfolio` };
+      const newP: ProfileAccount = { id: clean, name: `${clean} Portfolio`, password: password ?? '' };
       updated = [...profiles, newP];
       setProfiles(updated);
       localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
@@ -169,6 +174,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .upsert({ user_id: '__global__', key: 'profiles', value: JSON.stringify(updated) });
     } catch (e) {
       console.error('Failed to sync new profile to cloud:', e);
+    }
+  };
+
+  const updateProfilePassword = async (newPassword: string) => {
+    const updated = profiles.map(p => {
+      if (p.id.toLowerCase() === currentProfile.toLowerCase()) {
+        return { ...p, password: newPassword };
+      }
+      return p;
+    });
+    setProfiles(updated);
+    localStorage.setItem('app_saved_profiles', JSON.stringify(updated));
+    try {
+      await supabase
+        .from('settings')
+        .upsert({ user_id: '__global__', key: 'profiles', value: JSON.stringify(updated) });
+    } catch (e) {
+      console.error('Failed to update profile password in cloud:', e);
     }
   };
 
@@ -198,15 +221,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   };
 
-  // Profile + Master Key Sign-in
-  const signInWithMasterKey = (profileId: string, inputKey: string): boolean => {
-    const configuredKey = import.meta.env.VITE_MASTER_KEY || 'admin123';
-    if (inputKey && inputKey === configuredKey) {
-      const activeId = profileId.trim() || 'Personal';
+  // Sign-in with portfolio password (or master key fallback)
+  const signInWithPassword = (profileId: string, inputPass: string): boolean => {
+    const cleanId = profileId.trim();
+    const target = profiles.find(p => p.id.toLowerCase() === cleanId.toLowerCase());
+    const masterKey = import.meta.env.VITE_MASTER_KEY || 'admin123';
+
+    let isMatch = false;
+    if (target?.password) {
+      isMatch = target.password === inputPass || inputPass === masterKey;
+    } else {
+      isMatch = inputPass === 'admin123' || inputPass === masterKey;
+    }
+
+    if (isMatch) {
+      const activeId = target?.id || cleanId;
       localStorage.setItem('app_master_auth', 'true');
       localStorage.setItem('app_current_profile', activeId);
-
-      addProfile(activeId);
 
       const masterUser: any = {
         id: activeId,
@@ -220,6 +251,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
+  const signInWithMasterKey = (profileId: string, inputKey: string): boolean => {
+    return signInWithPassword(profileId, inputKey);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -230,9 +265,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profiles,
         currentProfile,
         signOut,
+        signInWithPassword,
         signInWithMasterKey,
         addProfile,
         removeProfile,
+        updateProfilePassword,
       }}
     >
       {children}

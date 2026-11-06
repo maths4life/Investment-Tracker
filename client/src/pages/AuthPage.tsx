@@ -3,11 +3,11 @@ import { KeyRound, ShieldCheck, ArrowRight, AlertCircle, Plus, Users } from 'luc
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => void }) {
-  const { signInWithMasterKey, profiles } = useAuth();
+  const { signInWithPassword, addProfile, profiles } = useAuth();
   const [selectedProfile, setSelectedProfile] = useState<string>(profiles[0]?.id || 'Personal');
   const [isAddingProfile, setIsAddingProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
-  const [masterKey, setMasterKey] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -16,21 +16,36 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
     }
   }, [profiles]);
 
-  const handleMasterKeySignIn = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const profileToUse = isAddingProfile ? newProfileName.trim() : selectedProfile;
-    if (!profileToUse) {
-      setErrorMsg('Please specify an account / profile name.');
-      return;
-    }
+    if (isAddingProfile) {
+      const cleanName = newProfileName.trim();
+      if (!cleanName) {
+        setErrorMsg('Please specify a username / account name.');
+        return;
+      }
 
-    const success = signInWithMasterKey(profileToUse, masterKey.trim());
-    if (success) {
-      onLoginSuccess?.();
+      await addProfile(cleanName, password);
+      const success = signInWithPassword(cleanName, password);
+      if (success) {
+        onLoginSuccess?.();
+      } else {
+        setErrorMsg('Could not log in with the created account.');
+      }
     } else {
-      setErrorMsg('Invalid Master Key. Default key is admin123 (or check VITE_MASTER_KEY in .env).');
+      if (!selectedProfile) {
+        setErrorMsg('Please select an account.');
+        return;
+      }
+
+      const success = signInWithPassword(selectedProfile, password);
+      if (success) {
+        onLoginSuccess?.();
+      } else {
+        setErrorMsg('Incorrect password for this account. (Default for initial accounts is admin123).');
+      }
     }
   };
 
@@ -57,14 +72,20 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
             </div>
           )}
 
-          {/* Account Profile Switcher + Master Key */}
-          <form onSubmit={handleMasterKeySignIn} className="space-y-4">
+          {/* Account Profile Switcher + Password Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="label mb-0">Select Account Profile</label>
+                <label className="label mb-0">
+                  {isAddingProfile ? 'Create New Account' : 'Select Account Profile'}
+                </label>
                 <button
                   type="button"
-                  onClick={() => setIsAddingProfile(!isAddingProfile)}
+                  onClick={() => {
+                    setIsAddingProfile(!isAddingProfile);
+                    setErrorMsg(null);
+                    setPassword('');
+                  }}
                   className="text-[11px] text-[#6B8CAE] hover:underline flex items-center gap-0.5"
                 >
                   <Plus size={12} />
@@ -98,20 +119,23 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
             </div>
 
             <div>
-              <label className="label">Master Access Key</label>
+              <label className="label">
+                {isAddingProfile ? 'Set Password' : 'Password'}
+              </label>
               <div className="relative">
                 <KeyRound size={14} className="absolute left-2.5 top-2.5 text-muted pointer-events-none" />
                 <input
                   type="password"
-                  required
-                  value={masterKey}
-                  onChange={(e) => setMasterKey(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="input pl-8 text-xs font-mono"
-                  placeholder="Enter your master key..."
+                  placeholder={isAddingProfile ? 'Create any password (no limits)' : 'Enter password...'}
                 />
               </div>
               <p className="text-[11px] text-muted mt-1">
-                Default: <code className="text-text">admin123</code>
+                {isAddingProfile
+                  ? 'No character or complexity limits.'
+                  : 'Default for original accounts: admin123'}
               </p>
             </div>
 
@@ -119,7 +143,11 @@ export default function AuthPage({ onLoginSuccess }: { onLoginSuccess?: () => vo
               type="submit"
               className="btn btn-primary w-full justify-center py-2 text-xs"
             >
-              <span>Unlock {isAddingProfile ? (newProfileName || 'Account') : selectedProfile}</span>
+              <span>
+                {isAddingProfile
+                  ? `Create & Unlock ${newProfileName.trim() || 'Account'}`
+                  : `Unlock ${selectedProfile}`}
+              </span>
               <ArrowRight size={13} strokeWidth={1.5} />
             </button>
           </form>
