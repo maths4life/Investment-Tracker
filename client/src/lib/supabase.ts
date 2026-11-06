@@ -1,15 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Fallback placeholder credentials for development if env vars are not set yet
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
+// Fallback to project credentials so it always works even if Vercel env vars were omitted
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xlrnebbbdtmzpbwpiyib.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_GUbOiJBCecM3wfqq_o94nQ_kt_1zNc6';
 
 export const isSupabaseConfigured = () => {
-  return (
-    Boolean(import.meta.env.VITE_SUPABASE_URL) &&
-    Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY) &&
-    import.meta.env.VITE_SUPABASE_URL !== 'https://demo-project.supabase.co'
-  );
+  return true;
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
